@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>TTS 聽感測試</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+  /* 單欄、置中的問卷頁；一次一段，分數按鈕夠大，手機也好按 */
+  :root {
+    --bg: #f6f7f4;
+    --surface: #ffffff;
+    --ink: #1d2622;
+    --muted: #5d6b65;
+    --line: #d8dfdb;
+    --accent: #1f6f5c;
+    --accent-ink: #ffffff;
+    --accent-soft: #e2efe9;
+    --ref: #f3ead9;
+    --warn: #a3452a;
+    --font: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141a17;
+      --surface: #1c2420;
+      --ink: #e7eeea;
+      --muted: #9fb0a8;
+      --line: #33413a;
+      --accent: #5cc3a5;
+      --accent-ink: #0d1612;
+      --accent-soft: #23362e;
+      --ref: #33301f;
+      --warn: #ee8f6f;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 17px/1.65 var(--font);
+    padding-block: 24px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  main { max-width: 640px; margin: 0 auto; display: grid; gap: 20px; }
+  h1 { font-size: 1.6rem; line-height: 1.3; margin: 0; text-wrap: balance; }
+  h2 { font-size: 1.15rem; margin: 0; }
+  p { margin: 0; }
+  .muted { color: var(--muted); }
+  .small { font-size: 0.9rem; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px;
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+  }
+  .facts { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+  label.field { display: grid; gap: 6px; font-weight: 500; }
+  select, textarea, input[type="text"] {
+    font: inherit;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    width: 100%;
+  }
+  textarea { min-height: 64px; resize: vertical; }
+  button.primary {
+    font: inherit;
+    font-weight: 700;
+    border: 0;
+    border-radius: 10px;
+    padding: 14px 20px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    cursor: pointer;
+  }
+  button.primary:disabled { opacity: 0.45; cursor: not-allowed; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  .progress { display: grid; gap: 8px; }
+  .progress-top { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
+  .bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .bar > span { display: block; height: 100%; background: var(--accent); transition: width 0.3s; }
+
+  .sentence {
+    font-size: 1.25rem;
+    line-height: 1.6;
+    padding: 14px 16px;
+    background: var(--accent-soft);
+    border-radius: 10px;
+  }
+  .ref-box { background: var(--ref); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; }
+  .ref-box summary { cursor: pointer; font-weight: 500; }
+  .letter {
+    display: inline-grid;
+    place-items: center;
+    width: 2.2em;
+    height: 2.2em;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 700;
+    margin-right: 8px;
+  }
+  audio { width: 100%; }
+  .listen-hint { font-size: 0.95rem; }
+  .listen-hint.done { color: var(--accent); font-weight: 500; }
+
+  .item + .item { border-top: 1px solid var(--line); padding-top: 16px; }
+  fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; min-width: 0; }
+  legend { padding: 0; font-weight: 700; font-size: 1.05rem; }
+  .scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .scale input, .choice input { position: absolute; opacity: 0; pointer-events: none; }
+  .scale label, .choice label {
+    display: grid;
+    place-items: center;
+    min-height: 48px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+  }
+  .scale label { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+  .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .scale input:checked + label, .choice input:checked + label {
+    background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
+  }
+  .scale input:focus-visible + label, .choice input:focus-visible + label { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .scale input:disabled + label, .choice input:disabled + label { opacity: 0.4; cursor: not-allowed; }
+  .anchors { font-size: 0.85rem; color: var(--muted); }
+
+  .error { color: var(--warn); font-weight: 500; }
+  .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  @media (prefers-reduced-motion: reduce) { .bar > span { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <!-- 開始頁 -->
+  <section id="view-intro" class="panel" aria-labelledby="intro-title">
+    <h1 id="intro-title">語音合成聽感測試</h1>
+    <p>請您聽幾段電腦合成的說話聲音，替每一段打分數。</p>
+    <ul class="facts">
+      <li>這次會聽 <strong><span id="intro-sentences">2</span> 句</strong>，每句有 <strong>7 段</strong>不同版本，大約 8～10 分鐘。</li>
+      <li>每句先聽一次<strong>參考音</strong>（原本說話者的聲音），再依序評 A～G。</li>
+      <li>每段要<strong>聽完一次</strong>才能評分，可以重聽，但請不要在不同段之間來回比較。</li>
+      <li>7 段裡有一段是真人原音，也有一段的聲線是固定的、聽起來不會像參考音，都照實打分就好。</li>
+      <li>句子是簡體字，聽的時候對照即可。</li>
+      <li>請戴耳機，音量調好後就不要再動。不會收集姓名或聯絡方式。</li>
+    </ul>
+    <h2>開始前的幾個問題</h2>
+    <label class="field" for="age">您的年齡
+      <select id="age"><option value="">請選擇</option></select>
+    </label>
+    <label class="field" for="region">您主要在哪裡長大
+      <select id="region"><option value="">請選擇</option></select>
+    </label>
+    <label class="field" for="device">您現在用什麼聽
+      <select id="device"><option value="">請選擇</option></select>
+    </label>
+    <label class="field" for="nickname">暱稱或代號（選填）
+      <input type="text" id="nickname" maxlength="30" placeholder="多次評分時填同一個，方便把結果連在一起" autocomplete="off">
+    </label>
+    <p id="intro-error" class="error" role="alert" hidden></p>
+    <div class="actions">
+      <button id="start" class="primary" type="button" disabled>開始評分</button>
+    </div>
+  </section>
+
+  <!-- 每句開始：先聽參考音 -->
+  <section id="view-ref" class="panel" hidden aria-live="polite">
+    <div class="progress">
+      <div class="progress-top">
+        <strong id="ref-title">第 1 句，共 2 句</strong>
+      </div>
+      <div class="bar" aria-hidden="true"><span id="ref-bar" style="width:0%"></span></div>
+    </div>
+    <div>
+      <p class="muted">這一句要唸的文字：</p>
+      <p class="sentence" id="ref-sentence"></p>
+    </div>
+    <div class="ref-box">
+      <h2>先聽參考音</h2>
+      <p class="small">這是原本說話者的聲音（內容和上面的句子不同）。請記住他的聲音，等一下要評每段「像不像」。</p>
+      <audio id="ref-player" controls preload="auto"></audio>
+      <p class="listen-hint muted" id="ref-hint">音檔載入中…</p>
+    </div>
+    <div class="actions">
+      <button id="ref-next" class="primary" type="button" disabled>開始評 A～G</button>
+    </div>
+  </section>
+
+  <!-- 評分頁 -->
+  <section id="view-rate" class="panel" hidden aria-live="polite">
+    <div class="progress">
+      <div class="progress-top">
+        <strong id="progress-text"></strong>
+        <span class="muted" id="progress-left"></span>
+      </div>
+      <div class="bar" aria-hidden="true"><span id="progress-bar" style="width:0%"></span></div>
+    </div>
+
+    <div>
+      <p class="muted">這一句要唸的文字：</p>
+      <p class="sentence" id="sentence"></p>
+    </div>
+
+    <details class="ref-box" id="ref-again">
+      <summary>重聽參考音</summary>
+      <audio id="ref-player-2" controls preload="none"></audio>
+    </details>
+
+    <div style="display:grid;gap:8px">
+      <h2><span class="letter" id="letter">A</span><span id="letter-text">A 段</span></h2>
+      <audio id="player" controls preload="auto"></audio>
+      <p class="listen-hint muted" id="listen-hint">音檔載入中…</p>
+    </div>
+
+    <form id="rating-form" style="display:grid;gap:16px" novalidate>
+      <div class="item">
+        <fieldset>
+          <legend>自然度</legend>
+          <div class="scale" id="scale-nat"></div>
+          <p class="anchors">1 難以忍受 · 2 很不自然 · 3 明顯不自然但能接受 · 4 稍有機器感 · 5 像真人</p>
+        </fieldset>
+      </div>
+      <div class="item">
+        <fieldset>
+          <legend>與參考音像不像</legend>
+          <div class="scale" id="scale-sim"></div>
+          <p class="anchors">1 完全不像 · 3 同性別、同年齡層但音色有差 · 5 幾乎是同一個人</p>
+        </fieldset>
+      </div>
+      <div class="item">
+        <fieldset>
+          <legend>有沒有漏字、多字或唸錯</legend>
+          <div class="choice">
+            <input type="radio" name="err" id="err-no" value="no" disabled><label for="err-no">沒有</label>
+            <input type="radio" name="err" id="err-yes" value="yes" disabled><label for="err-yes">有</label>
+          </div>
+          <label class="field" for="err-text" id="err-text-wrap" hidden>是哪個字？
+            <input type="text" id="err-text" maxlength="200" placeholder="例如：漏了「共享」、「行」唸成 háng" autocomplete="off">
+          </label>
+        </fieldset>
+      </div>
+      <div class="item">
+        <label class="field" for="comment">備註（選填）
+          <textarea id="comment" maxlength="500" placeholder="例如：雜音、奇怪的停頓、口音、尾音被切掉…"></textarea>
+        </label>
+      </div>
+    </form>
+
+    <p id="rate-error" class="error" role="alert" hidden></p>
+    <div class="actions">
+      <button id="next" class="primary" type="button" disabled>下一段</button>
+      <span class="muted" id="next-hint"></span>
+    </div>
+  </section>
+
+  <!-- 完成頁 -->
+  <section id="view-done" class="panel" hidden>
+    <h1>謝謝您！</h1>
+    <p>您的評分都已經送出了，可以直接關掉這個頁面。</p>
+    <p class="muted">如果還有時間，可以休息一下再評一組新的句子。</p>
+    <div class="actions">
+      <button id="again" class="primary" type="button">再評一組</button>
+    </div>
+  </section>
+</main>
+
+<script src="manifest.js"></script>
+<script>
+  // ---------- 設定
+  var SENTENCES_PER_SESSION = 2;
+  var FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScM8pNucfRK2Dau9j0AaIFncHaTj8dbTR6w1dtg0XRNbl83kA/formResponse';
+  var ENTRY = {
+    rater: 'entry.676435534',
+    profile: 'entry.2019247797',
+    session: 'entry.1497735262',
+    sample: 'entry.328166752',
+    nat: 'entry.1157990196',
+    sim: 'entry.2050467268',
+    err: 'entry.1858926703',
+    comment: 'entry.1433492660',
+    plays: 'entry.859655344',
+    refPlays: 'entry.540822330'
+  };
+  var CHOICES = {
+    age: ['20 歲以下', '20～39 歲', '40～59 歲', '60～74 歲', '75 歲以上'],
+    region: ['台灣北部', '台灣中部', '台灣南部', '台灣東部或離島', '台灣以外'],
+    device: ['耳機', '電腦喇叭', '手機喇叭', '其他']
+  };
+
+  var state = null;
+  var preloaded = {};
+  var $ = function (id) { return document.getElementById(id); };
+
+  function audioUrl(id) {
+    return 'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(id) + '&export=download';
+  }
+  function store(key, value) {
+    try {
+      if (value === undefined) return localStorage.getItem(key);
+      localStorage.setItem(key, value);
+    } catch (e) {}
+    return null;
+  }
+  function newId() {
+    return (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+      : 'r-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+  function raterId() {
+    var v = store('tts-listening-rater');
+    if (v) return v;
+    v = newId();
+    store('tts-listening-rater', v);
+    return v;
+  }
+  function show(view) {
+    ['intro', 'ref', 'rate', 'done'].forEach(function (v) { $('view-' + v).hidden = (v !== view); });
+    window.scrollTo(0, 0);
+  }
+  function setError(id, text) {
+    $(id).textContent = text || '';
+    $(id).hidden = !text;
+  }
+
+  // 每次抽句：優先抽這個瀏覽器還沒評過的句子，評完一輪就重來
+  function pickSentences() {
+    var done = [];
+    try { done = JSON.parse(store('tts-listening-done') || '[]'); } catch (e) {}
+    var pool = window.TESTSET.filter(function (s) { return done.indexOf(s.no) < 0; });
+    if (pool.length < SENTENCES_PER_SESSION) pool = window.TESTSET.slice();
+    for (var i = pool.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+    }
+    return pool.slice(0, SENTENCES_PER_SESSION);
+  }
+  function markDone(nos) {
+    var done = [];
+    try { done = JSON.parse(store('tts-listening-done') || '[]'); } catch (e) {}
+    nos.forEach(function (n) { if (done.indexOf(n) < 0) done.push(n); });
+    if (done.length >= window.TESTSET.length) done = [];
+    store('tts-listening-done', JSON.stringify(done));
+  }
+
+  // 送一筆評分到 Google 表單（no-cors：送得出去就算成功，網路錯誤才會失敗）
+  function submitRating(values) {
+    var body = new URLSearchParams();
+    Object.keys(values).forEach(function (k) { body.append(ENTRY[k], String(values[k])); });
+    return fetch(FORM_URL, { method: 'POST', mode: 'no-cors', body: body });
+  }
+
+  // ---------- 開始頁
+  $('intro-sentences').textContent = SENTENCES_PER_SESSION;
+  ['age', 'region', 'device'].forEach(function (k) {
+    CHOICES[k].forEach(function (c) {
+      var o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      $(k).appendChild(o);
+    });
+    $(k).addEventListener('change', updateStart);
+  });
+  $('nickname').value = store('tts-listening-nickname') || '';
+  function updateStart() {
+    $('start').disabled = !($('age').value && $('region').value && $('device').value);
+  }
+  $('start').addEventListener('click', function () {
+    if (!window.TESTSET || !window.TESTSET.length) {
+      setError('intro-error', '測試資料載入失敗，請重新整理頁面。');
+      return;
+    }
+    var nickname = $('nickname').value.trim().slice(0, 30);
+    store('tts-listening-nickname', nickname);
+    var sentences = pickSentences();
+    var steps = [];
+    sentences.forEach(function (s, si) {
+      steps.push({ kind: 'ref', sentence: s, si: si });
+      s.segs.forEach(function (pair, gi) {
+        steps.push({ kind: 'seg', sentence: s, si: si, gi: gi, letter: pair[0], fileId: pair[1] });
+      });
+    });
+    state = {
+      sessionId: newId(),
+      rater: raterId(),
+      profile: [$('age').value, $('region').value, $('device').value, nickname].join(' | '),
+      sentences: sentences, steps: steps, pos: 0,
+      total: steps.filter(function (x) { return x.kind === 'seg'; }).length, done: 0, refPlays: {}
+    };
+    renderStep();
+  });
+
+  // ---------- 音檔
+  function prefetch(pos) {
+    var st = state.steps[pos];
+    if (!st) return;
+    var id = st.kind === 'ref' ? st.sentence.ref : st.fileId;
+    if (preloaded[id]) return;
+    var a = new Audio();
+    a.preload = 'auto';
+    a.src = audioUrl(id);
+    preloaded[id] = a;
+  }
+  function attach(player, hintEl, fileId, readyText) {
+    hintEl.textContent = '音檔載入中…';
+    hintEl.className = 'listen-hint muted';
+    player.onloadeddata = function () { hintEl.textContent = readyText; };
+    player.onerror = function () {
+      hintEl.textContent = '音檔載入失敗，請檢查網路後重新整理頁面。';
+      hintEl.className = 'listen-hint error';
+    };
+    player.src = audioUrl(fileId);
+    prefetch(state.pos + 1);
+  }
+
+  function renderStep() {
+    var st = state.steps[state.pos];
+    state.current = { plays: 0, ended: false };
+    var n = state.sentences.length;
+    var pct = (state.done / state.total * 100) + '%';
+    if (st.kind === 'ref') {
+      show('ref');
+      $('ref-title').textContent = '第 ' + (st.si + 1) + ' 句，共 ' + n + ' 句';
+      $('ref-bar').style.width = pct;
+      $('ref-sentence').textContent = st.sentence.text;
+      $('ref-next').disabled = true;
+      attach($('ref-player'), $('ref-hint'), st.sentence.ref, '請按播放鍵，聽完一次後就可以開始評分。');
+      return;
+    }
+    show('rate');
+    var segs = st.sentence.segs.length;
+    $('progress-text').textContent = '第 ' + (st.si + 1) + ' 句 · ' + st.letter + ' 段（' + (st.gi + 1) + '/' + segs + '）';
+    $('progress-left').textContent = '全部 ' + (state.done + 1) + '/' + state.total;
+    $('progress-bar').style.width = pct;
+    $('sentence').textContent = st.sentence.text;
+    $('letter').textContent = st.letter;
+    $('letter-text').textContent = st.letter + ' 段';
+    $('ref-again').open = false;
+    $('ref-player-2').removeAttribute('src');
+    resetForm();
+    var last = state.pos === state.steps.length - 1;
+    $('next').textContent = last ? '送出並完成' : (st.gi === segs - 1 ? '下一句' : '下一段');
+    setError('rate-error', '');
+    updateNext();
+    attach($('player'), $('listen-hint'), st.fileId, '請按播放鍵，聽完一次後就可以評分。');
+  }
+
+  // ---------- 參考音頁
+  $('ref-player').addEventListener('play', function () {
+    var st = state && state.steps[state.pos];
+    if (st && st.kind === 'ref') state.refPlays[st.sentence.no] = (state.refPlays[st.sentence.no] || 0) + 1;
+  });
+  $('ref-player').addEventListener('ended', function () {
+    var st = state && state.steps[state.pos];
+    if (!st || st.kind !== 'ref') return;
+    $('ref-next').disabled = false;
+    $('ref-hint').textContent = '已聽完，可以開始評分了（也可以再聽一次）。';
+    $('ref-hint').className = 'listen-hint done';
+  });
+  $('ref-next').addEventListener('click', function () {
+    $('ref-player').pause();
+    state.pos += 1;
+    renderStep();
+  });
+
+  // 評分頁的「重聽參考音」：打開時才載入
+  $('ref-again').addEventListener('toggle', function () {
+    var st = state && state.steps[state.pos];
+    if (!$('ref-again').open || !st || st.kind !== 'seg') return;
+    var p2 = $('ref-player-2');
+    if (!p2.getAttribute('src')) p2.src = audioUrl(st.sentence.ref);
+  });
+  $('ref-player-2').addEventListener('play', function () {
+    var st = state && state.steps[state.pos];
+    if (st) state.refPlays[st.sentence.no] = (state.refPlays[st.sentence.no] || 0) + 1;
+    $('player').pause();
+  });
+
+  // ---------- 評分表單
+  function buildScale(containerId, name, label) {
+    var box = $(containerId);
+    box.textContent = '';
+    for (var v = 1; v <= 5; v++) {
+      var id = name + '_' + v;
+      var input = document.createElement('input');
+      input.type = 'radio'; input.name = name; input.value = String(v); input.id = id; input.disabled = true;
+      input.addEventListener('change', updateNext);
+      var lb = document.createElement('label'); lb.htmlFor = id; lb.textContent = String(v);
+      lb.setAttribute('aria-label', label + ' ' + v + ' 分');
+      box.appendChild(input); box.appendChild(lb);
+    }
+  }
+  function resetForm() {
+    buildScale('scale-nat', 'nat', '自然度');
+    buildScale('scale-sim', 'sim', '與參考音像不像');
+    ['err-no', 'err-yes'].forEach(function (id) { $(id).checked = false; $(id).disabled = true; });
+    $('err-text').value = '';
+    $('err-text-wrap').hidden = true;
+    $('comment').value = '';
+  }
+  ['err-no', 'err-yes'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      $('err-text-wrap').hidden = !$('err-yes').checked;
+      if ($('err-yes').checked) $('err-text').focus();
+      updateNext();
+    });
+  });
+  $('err-text').addEventListener('input', updateNext);
+
+  $('player').addEventListener('play', function () {
+    if (state && state.current) state.current.plays += 1;
+    $('ref-player-2').pause();
+  });
+  $('player').addEventListener('ended', function () {
+    if (!state || !state.current || state.current.ended) return;
+    state.current.ended = true;
+    Array.prototype.forEach.call(document.querySelectorAll('#rating-form input[type="radio"]'), function (el) { el.disabled = false; });
+    $('listen-hint').textContent = '已聽完，可以評分了（也可以再聽一次）。';
+    $('listen-hint').className = 'listen-hint done';
+    updateNext();
+  });
+
+  function readForm() {
+    var nat = document.querySelector('input[name="nat"]:checked');
+    var sim = document.querySelector('input[name="sim"]:checked');
+    var errNo = $('err-no').checked, errYes = $('err-yes').checked;
+    var errDetail = $('err-text').value.trim();
+    if (!nat || !sim || !(errNo || (errYes && errDetail))) return null;
+    return { nat: Number(nat.value), sim: Number(sim.value), err: errYes ? errDetail : '無' };
+  }
+  function updateNext() {
+    if (!state || !state.current) return;
+    var ready = state.current.ended && readForm();
+    $('next').disabled = !ready;
+    if (!state.current.ended) $('next-hint').textContent = '請先聽完一次';
+    else if (!ready) $('next-hint').textContent = $('err-yes').checked && !$('err-text').value.trim() ? '請寫出是哪個字' : '請評完三項';
+    $('next-hint').hidden = !!ready;
+  }
+
+  $('next').addEventListener('click', function () {
+    var form = readForm();
+    if (!form) return;
+    var st = state.steps[state.pos];
+    $('next').disabled = true;
+    var label = $('next').textContent;
+    $('next').textContent = '送出中…';
+    setError('rate-error', '');
+    $('player').pause();
+    submitRating({
+      rater: state.rater,
+      profile: state.profile,
+      session: state.sessionId,
+      sample: st.sentence.no + '-' + st.letter,
+      nat: form.nat,
+      sim: form.sim,
+      err: form.err,
+      comment: $('comment').value.trim().slice(0, 500),
+      plays: state.current.plays,
+      refPlays: state.refPlays[st.sentence.no] || 0
+    }).then(function () {
+      state.done += 1;
+      state.pos += 1;
+      if (state.pos >= state.steps.length) {
+        markDone(state.sentences.map(function (s) { return s.no; }));
+        show('done');
+      } else {
+        renderStep();
+      }
+    }).catch(function () {
+      setError('rate-error', '沒有送出成功，請檢查網路後再按一次。');
+      $('next').textContent = label;
+      updateNext();
+    });
+  });
+
+  $('again').addEventListener('click', function () {
+    state = null;
+    show('intro');
+    updateStart();
+  });
+</script>
+</body>
+</html>

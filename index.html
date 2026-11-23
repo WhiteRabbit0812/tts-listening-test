@@ -308,8 +308,9 @@
   var preloaded = {};
   var $ = function (id) { return document.getElementById(id); };
 
-  function audioUrl(id) {
-    return 'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(id) + '&export=download';
+  // 音檔和網頁放在同一個網站（manifest.js 裡是相對路徑）
+  function audioUrl(path) {
+    return path;
   }
   function store(key, value) {
     try {
